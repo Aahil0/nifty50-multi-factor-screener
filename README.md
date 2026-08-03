@@ -2,7 +2,7 @@
 
 A cross-sectional multi-factor equity screener for India's **Nifty 50** index, built in Python. Ranks all 50 constituents using four institutional factor families — **Value, Momentum, Quality, and Low Volatility** — combined into a single weighted composite score, with automated data-quality handling and interactive visual analytics.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Aahil0/nifty50-multi-factor-screener/blob/main/notebooks/nifty50_multi_factor_equity_screener.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Aahil0/nifty50-multi-factor-screener/blob/main/nifty50_multi_factor_equity_screener.ipynb)
 
 ## What it does
 
