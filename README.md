@@ -21,6 +21,7 @@ Missing or unavailable data (common with a couple of very recently renamed/demer
 
 ## Sample output
 
+<img width="1390" height="657" alt="image" src="https://github.com/user-attachments/assets/2cd9eccd-29f2-4615-913a-5dc12b62c786" />
 
 ## Quant finance concepts used
 
