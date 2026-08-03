@@ -21,7 +21,6 @@ Missing or unavailable data (common with a couple of very recently renamed/demer
 
 ## Sample output
 
-*(Add 1–2 screenshots or GIFs of your charts here — see "How to add screenshots" below)*
 
 ## Quant finance concepts used
 
