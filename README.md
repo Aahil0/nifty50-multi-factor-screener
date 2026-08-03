@@ -49,7 +49,7 @@ Click the "Open in Colab" badge above, then `Runtime → Run all`.
 
 **Option B — Locally:**
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/nifty50-multi-factor-screener.git
+git clone https://github.com/Aahil0/nifty50-multi-factor-screener.git
 cd nifty50-multi-factor-screener
 pip install -r requirements.txt
 jupyter notebook notebooks/nifty50_multi_factor_equity_screener.ipynb
