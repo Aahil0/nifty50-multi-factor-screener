@@ -21,7 +21,14 @@ Missing or unavailable data (common with a couple of very recently renamed/demer
 
 ## Sample output
 
-<img width="1390" height="657" alt="image" src="https://github.com/user-attachments/assets/2cd9eccd-29f2-4615-913a-5dc12b62c786" />
+<img width="1400" height="900" alt="image" src="https://github.com/user-attachments/assets/2cd9eccd-29f2-4615-913a-5dc12b62c786" />
+<img width="1400" height="900" alt="image" src="https://github.com/user-attachments/assets/36b3039a-e6ea-4552-ad1a-d12f7de18d96" />
+<img width="1656" height="657" alt="image" src="https://github.com/user-attachments/assets/4fb308cc-f8b6-4991-b11c-d6926b274e64" />
+<img width="984" height="784" alt="image" src="https://github.com/user-attachments/assets/657b26dc-2688-4cab-9fbb-a2dc6bbafb51" />
+
+
+
+
 
 ## Quant finance concepts used
 
