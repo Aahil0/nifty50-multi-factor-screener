@@ -54,9 +54,6 @@ jupyter notebook notebooks/nifty50_multi_factor_equity_screener.ipynb
 - This is a single-day snapshot screener, not a backtested strategy — no point-in-time historical fundamentals, transaction costs, or portfolio-level risk modeling yet.
 - Planned upgrades: sector-neutral scoring, historical backtesting with Information Coefficient analysis, and a covariance-based portfolio optimizer layer.
 
-## Resume bullet
-
-> Built a multi-factor equity screener in Python (yfinance, pandas, Plotly) that ranks India's Nifty 50 constituents across Value, Momentum, Quality, and Low-Volatility factors using cross-sectional z-scoring and a configurable weighted composite model, with automated data-quality handling and interactive visual analytics.
 
 ## License
 
