@@ -57,6 +57,24 @@ RETRY_PAUSE_SEC = 0.4
 # ======================================================================
 # Data acquisition (cached — avoids re-hitting Yahoo on every rerun)
 # ======================================================================
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_fx_rate(from_currency: str, to_currency: str) -> float:
+    """Return the rate to convert 1 unit of from_currency into to_currency.
+    Falls back to 1.0 (no conversion) if the pair can't be fetched -- a missed
+    conversion is less harmful than crashing the whole analysis, and the
+    sanity-bound guard downstream catches most resulting bad multiples anyway."""
+    if from_currency == to_currency or not from_currency or not to_currency:
+        return 1.0
+    pair = f"{from_currency}{to_currency}=X"
+    try:
+        hist = yf.Ticker(pair).history(period="5d")
+        if not hist.empty:
+            return float(hist["Close"].iloc[-1])
+    except Exception:
+        pass
+    return 1.0
+
+
 @st.cache_data(ttl=900, show_spinner=False)
 def fetch_company_snapshot(ticker: str) -> dict:
     """Pull one fundamental snapshot for a ticker. Cached for 15 minutes per
@@ -79,22 +97,39 @@ def fetch_company_snapshot(ticker: str) -> dict:
     if not info:
         return {}
 
+    quote_currency = info.get("currency", "USD")
+    # Yahoo sometimes reports income-statement/balance-sheet figures (revenue,
+    # EBITDA, net income, debt, cash, book value) in a DIFFERENT currency than
+    # the quoted share price -- e.g. USD financials against an INR-quoted NSE
+    # listing. Left uncorrected, this silently inflates EV-based multiples by
+    # roughly the FX rate. Detect and normalize it here.
+    financial_currency = info.get("financialCurrency", quote_currency)
+    fx_rate = get_fx_rate(financial_currency, quote_currency)
+    fx_adjusted = fx_rate != 1.0
+
+    def to_quote_currency(value):
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            return np.nan
+        return value * fx_rate
+
     return {
         "ticker": ticker,
         "shortName": info.get("shortName", ticker),
         "sector": info.get("sector", "Unknown"),
         "industry": info.get("industry", "Unknown"),
-        "currency": info.get("currency", "USD"),
+        "currency": quote_currency,
+        "financialCurrency": financial_currency,
+        "fxAdjusted": fx_adjusted,
         "currentPrice": info.get("currentPrice", info.get("regularMarketPrice", np.nan)),
         "marketCap": info.get("marketCap", np.nan),
         "enterpriseValue": info.get("enterpriseValue", np.nan),
-        "totalDebt": info.get("totalDebt", np.nan),
-        "totalCash": info.get("totalCash", np.nan),
-        "totalRevenue": info.get("totalRevenue", np.nan),
-        "ebitda": info.get("ebitda", np.nan),
-        "netIncomeToCommon": info.get("netIncomeToCommon", np.nan),
-        "trailingEps": info.get("trailingEps", np.nan),
-        "bookValue": info.get("bookValue", np.nan),
+        "totalDebt": to_quote_currency(info.get("totalDebt", np.nan)),
+        "totalCash": to_quote_currency(info.get("totalCash", np.nan)),
+        "totalRevenue": to_quote_currency(info.get("totalRevenue", np.nan)),
+        "ebitda": to_quote_currency(info.get("ebitda", np.nan)),
+        "netIncomeToCommon": to_quote_currency(info.get("netIncomeToCommon", np.nan)),
+        "trailingEps": info.get("trailingEps", np.nan),   # Yahoo's own EPS/PE/PB ratios
+        "bookValue": info.get("bookValue", np.nan),        # already net of currency (ratios/per-share vs. quote price)
         "sharesOutstanding": info.get("sharesOutstanding", np.nan),
         "trailingPE": info.get("trailingPE", np.nan),
         "priceToBook": info.get("priceToBook", np.nan),
@@ -147,6 +182,35 @@ def compute_multiples(df: pd.DataFrame) -> pd.DataFrame:
 
     m["NetMargin"] = m["netIncomeToCommon"] / safe_revenue
     return m
+
+
+# Generous but real-world bounds per multiple -- values outside these are
+# almost certainly a data error (bad currency, stale field, wrong units)
+# rather than a genuine outlier valuation, and are excluded from the analysis
+# rather than silently distorting peer medians/quartiles.
+SANITY_BOUNDS = {
+    "EV_Revenue": (0, 40),
+    "EV_EBITDA": (0, 100),
+    "PE": (0, 150),
+    "PB": (0, 60),
+    "PEG": (0, 10),
+}
+
+
+def apply_sanity_bounds(m: pd.DataFrame) -> tuple:
+    """Null out any multiple that falls outside a plausible real-world range
+    and return the cleaned table plus a list of (ticker, column, value) flags
+    so the caller can warn the user exactly what was excluded and why."""
+    m = m.copy()
+    flags = []
+    for col, (lo, hi) in SANITY_BOUNDS.items():
+        if col not in m.columns:
+            continue
+        out_of_bounds = (m[col] < lo) | (m[col] > hi)
+        for ticker in m.index[out_of_bounds.fillna(False)]:
+            flags.append((ticker, col, m.loc[ticker, col]))
+        m.loc[out_of_bounds.fillna(False), col] = np.nan
+    return m, flags
 
 
 def compute_peer_stats(peer_multiples: pd.DataFrame) -> pd.DataFrame:
@@ -336,6 +400,21 @@ if run_clicked:
                     st.warning(f"Excluded (no data returned): {', '.join(failed)}")
 
                 multiples = compute_multiples(raw_data)
+                multiples, flagged = apply_sanity_bounds(multiples)
+
+                fx_adjusted_tickers = [t for t in multiples.index if multiples.loc[t].get("fxAdjusted", False)]
+                if fx_adjusted_tickers:
+                    st.info(
+                        f"Currency-normalized financial statement data for: {', '.join(fx_adjusted_tickers)} "
+                        "(Yahoo reported revenue/EBITDA in a different currency than the quoted share price "
+                        "for these — converted to match before computing multiples)."
+                    )
+                if flagged:
+                    flag_desc = ", ".join(f"{t} {METHODOLOGY_LABELS.get(c, c)} ({v:.1f}x)" for t, c, v in flagged)
+                    st.warning(
+                        f"Excluded as implausible (likely a data error, not a genuine outlier): {flag_desc}"
+                    )
+
                 peer_multiples = multiples.drop(index=target_ticker)
                 peer_stats = compute_peer_stats(peer_multiples)
                 target = multiples.loc[target_ticker]
